@@ -30,8 +30,13 @@ module control_unit (
     localparam logic [3:0] ALU_OR = 4'b0001;
     localparam logic [3:0] ALU_AND = 4'b0000;
 
+    // Internal signals
     logic [1:0] alu_op; // 2-bit ALU operation code
     logic branch;
+    logic reg_write_raw, mem_write_raw;
+    logic alu_illegal; // 1: illegal ALU operation detected
+    logic opcode_illegal; // 1: illegal opcode detected
+    logic branch_illegal; // 1: illegal branch instruction detected
 
     // 1. Main Decoder
 
@@ -43,24 +48,25 @@ module control_unit (
         mem_to_reg = 1'b0;
         branch = 1'b0;
         alu_op = 2'b00;
+        op_code_illegal = 1'b0;       
 
         unique case (opcode)
             OPCODE_R_TYPE: begin
-                reg_write = 1'b1;
+                reg_write_raw = 1'b1;
                 alu_src = 1'b0; // operand B is from rs2
                 mem_to_reg = 1'b0; // write ALU result to register
                 alu_op = 2'b10; // decode using funct3/funct7
             end
 
             OPCODE_I_TYPE: begin
-                reg_write = 1'b1;
+                reg_write_raw = 1'b1;
                 alu_src = 1'b1; // operand B is immediate
                 mem_to_reg = 1'b0; // write ALU result to register
                 alu_op = 2'b10; // decode using funct3 
             end
 
             OPCODE_LOAD: begin
-                reg_write = 1'b1;
+                reg_write_raw = 1'b1;
                 alu_src = 1'b1; // base address + offset
                 mem_to_reg = 1'b1; // write memory data to register
                 alu_op = 2'b00; // ALU performs addition for address calculation
@@ -80,6 +86,7 @@ module control_unit (
 
             default: begin
                 // For unsupported opcodes, keep all control signals at default (inactive)
+                opcode_illegal = 1'b1; // illegal opcode detected
             end
         endcase
     end
@@ -97,19 +104,31 @@ module control_unit (
                 case (funct3)
                     3'b000: begin
                         // distiguish between ADD and SUB using funct7[5]
-                        if ((opcode == OPCODE_R_TYPE) && funct7[5])
+                        if ((opcode == OPCODE_R_TYPE) && funct7 == 7'b0100000)
                             alu_ctrl = ALU_SUB; // SUB
+                        else if ((opcode == OPCODE_R_TYPE) && funct7 != 7'b0000000)
+                            alu_illegal = 1'b1; // illegal funct7 for R-type                        
                         else
                             alu_ctrl = ALU_ADD; // ADD or ADDI
                     end
-                    3'b010: alu_ctrl = ALU_SLT; // SLT
-                    3'b110: alu_ctrl = ALU_OR; // OR
-                    3'b111: alu_ctrl = ALU_AND; // AND
+                    3'b010: begin
+                        alu_ctrl = ALU_SLT; // SLT
+                        alu_illegal = (opcode == OPCODE_R_TYPE) && (funct7 != 7'b0);
+                    end
+                    3'b110: begin
+                        alu_ctrl = ALU_OR; // OR
+                        alu_illegal = (opcode == OPCODE_R_TYPE) && (funct7 != 7'b0);
+                    end
+                    3'b111: begin
+                        alu_ctrl = ALU_AND; // AND
+                        alu_illegal = (opcode == OPCODE_R_TYPE) && (funct7 != 7'b0);
+                    end
                     default: alu_ctrl = ALU_ADD; 
                 endcase
             end
 
             default: alu_illegal = 1'b1; 
+
         endcase
     end
 
@@ -120,9 +139,16 @@ module control_unit (
         case (funct3)
             3'b000: branch_condition_met = alu_zero; // BEQ rs1 == rs2
             3'b001: branch_condition_met = !alu_zero; // BNE rs1 != rs2
-            default: branch_condition_met = 1'b0;
+            default: begin
+                branch_condition_met = 1'b0;
+                branch_illegal = branch;
+            end
         endcase
     end
+
+    assign illegal_instr = opcode_illegal | alu_illegal | branch_illegal;
+    assign reg_write = reg_write_raw & !illegal_instr;
+    assign mem_write = mem_write_raw & !illegal_instr;
 
     // 4. PC Select Logic
     assign pc_select = branch & branch_condition_met;

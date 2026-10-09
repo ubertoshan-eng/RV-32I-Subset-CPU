@@ -1,4 +1,8 @@
-#simulation outputs
+/*
+!/cpu/
+!/README.md
+!/.gitignore
 
+# simulation outputs, anywhere
 *.vcd
 *_sim
