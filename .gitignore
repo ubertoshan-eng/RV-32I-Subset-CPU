@@ -1,0 +1,4 @@
+#simulation outputs
+
+*.vcd
+*_sim
