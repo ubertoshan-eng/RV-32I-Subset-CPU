@@ -20,6 +20,7 @@ module cpu_single_cycle #(
         logic mem_to_reg;
         logic pc_sel;
         logic [3:0] alu_ctrl;
+        logic illegal_instr;
 
         //register file signals
         logic [4:0] rs1_addr, rs2_addr, rd_addr;
@@ -75,6 +76,7 @@ module cpu_single_cycle #(
             .mem_to_reg (mem_to_reg),
             .pc_select (pc_sel),
             .alu_ctrl (alu_ctrl)
+            .illegal_instr (illegal_instr)
         );
 
         // Register file
