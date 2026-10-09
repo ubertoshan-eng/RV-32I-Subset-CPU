@@ -75,7 +75,7 @@ module cpu_single_cycle #(
             .mem_write (mem_write),
             .mem_to_reg (mem_to_reg),
             .pc_select (pc_sel),
-            .alu_ctrl (alu_ctrl)
+            .alu_ctrl (alu_ctrl),
             .illegal_instr (illegal_instr)
         );
 

@@ -48,7 +48,7 @@ module control_unit (
         mem_to_reg = 1'b0;
         branch = 1'b0;
         alu_op = 2'b00;
-        op_code_illegal = 1'b0;       
+        opcode_illegal = 1'b0;       
 
         unique case (opcode)
             OPCODE_R_TYPE: begin
@@ -74,7 +74,7 @@ module control_unit (
 
             OPCODE_STORE: begin
                 alu_src = 1'b1; // base address + offset
-                mem_write = 1'b1; // enable memory write
+                mem_write_raw = 1'b1; // enable memory write
                 alu_op = 2'b00; // ALU performs addition for address calculation
             end
 
@@ -123,7 +123,7 @@ module control_unit (
                         alu_ctrl = ALU_AND; // AND
                         alu_illegal = (opcode == OPCODE_R_TYPE) && (funct7 != 7'b0);
                     end
-                    default: alu_ctrl = ALU_ADD; 
+                    default: alu_illegal = 1'b1;
                 endcase
             end
 
@@ -136,6 +136,7 @@ module control_unit (
     logic branch_condition_met;
     
     always_comb begin
+        branch_illegal = 1'b0; // default: no illegal branch instruction
         case (funct3)
             3'b000: branch_condition_met = alu_zero; // BEQ rs1 == rs2
             3'b001: branch_condition_met = !alu_zero; // BNE rs1 != rs2
